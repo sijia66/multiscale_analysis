@@ -303,21 +303,7 @@ saveas(gca, 'feature_spatial_time_frequency.png')
 %plot_trials(Trials)
 %make a list of xlines to plot 
 
-%units in ms
-startAcq = [Trials.StartAq] - [Trials.ReachStart];
-targsOn = [Trials.TargsOn] - [Trials.ReachStart];
-go = [Trials.Go] - [Trials.ReachStart];
-reachStop = [Trials.ReachStop] - [Trials.ReachStart];
-
-%insert zero for reachStart
-behav_times = [startAcq' go' targsOn' zeros(length(Trials),1) reachStop'];
-
-behav_times_mean = nanmean(behav_times) / 1000; %convert to in s
-behav_times_std = nanstd(behav_times) / 1000;   %convert to in s
-
-behav_struct.times = behav_times_mean;
-behav_struct.times_std = behav_times_std;
-behav_struct.labels = {'Start acq' 'Go' 'Targ On' 'Reach Start' 'Reach Stop'};
+behav_struct = cal_behav_times(Trials);
 
 %% example electrodes at different times
 example_electrodes = [1,11,218,211+13];
@@ -331,8 +317,6 @@ params.trialave = 1;
 params.fpass = [0 200]; %controls the output frequency window
 movingwin = [0.2  0.05];
 num_ticks = 4;
-
-
 
 
 %make a new figure
