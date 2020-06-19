@@ -1,7 +1,7 @@
-%%
-% load some example recordings
+%% load some example recordings
 global MONKEYDIR
-MONKEYDIR = 'D:\SiJia\OneDrive - UW\projects\Brain EEG\data';
+%MONKEYDIR = 'D:\SiJia\OneDrive - UW\projects\Brain EEG\data';
+MONKEYDIR = 'C:\Users\Si Jia\OneDrive - UW\projects\Brain EEG\data'
 addpath(genpath([MONKEYDIR '/m/']))
 
 % look at the sessions
@@ -36,7 +36,7 @@ trialInfo.goodECoGs = setdiff(1:211,trialInfo.badECoGs);
 trialInfo.proc_electrodes = 1:243;
 
 %use constant target defination
-selectedfile = 'D:\SiJia\OneDrive - UW\projects\Brain EEG\code\posTargets_180328.mat';
+selectedfile = 'C:\Users\Si Jia\OneDrive - UW\projects\Brain EEG\code\posTargets_180328.mat';
 load(selectedfile)
 
 %we load the regular trials
@@ -70,11 +70,8 @@ for iD=1:nSess
     Pos_Seq_1 = squeeze(Pos(:,2,:));
     trial_TargetAssigned = assignTaskNumber(Pos_Seq_1_unique,Pos_Seq_1);
 end
-
 %% build the feature set
-
-
-disp('test the significant across the electrodes')
+disp('test the significance across the electrodes')
 
 example_electrode = 218;
 dat = squeeze(trLfpData(:,example_electrode,:));
@@ -87,23 +84,18 @@ params.tapers = [tfproduct 2*tfproduct-1];
 params.trialave = 0;
 params.fpass = [0 200];
 movingwin = [0.2  0.05];
-
 num_ticks = 8;
-
 
 [S,t,f] = mtspecgramc( data, movingwin, params );
 t = t + trialInfo.tBefore/1000; %shift relative to movement start
 S_Z = zscore(S,[],1);
 
-
-figure
+ax = figure
 imagesc(squeeze(mean(S_Z,3)'))
 title('Mean spectrum across all trials')
 colorbar
 axis xy
-
 add_t_f_axes(ax,t,f,trialInfo,num_ticks)
-
 %% feature selection over all electrodes
 disp('Calculate the feature p  values')
 
@@ -136,16 +128,12 @@ end
 
 save('annova_results_all.mat',...
     'feature_p_values_all')
-
 %% plot out the mean response
- 
-
 fpv_ECOG_mean = squeeze(mean(-log10(feature_p_values_all(trialInfo.goodECoGs,:,:))));
 fpv_SC32_mean = squeeze(mean(-log10(feature_p_values_all(trialInfo.goodSC32,:,:))));
 
 fpv_ECOG_std = squeeze(std(-log10(feature_p_values_all(trialInfo.goodECoGs,:,:))));
 fpv_SC32_std = squeeze(std(-log10(feature_p_values_all(trialInfo.goodSC32,:,:))));
-
 
 ax = subplot(2,2,1);
 imagesc(fpv_ECOG_mean');
@@ -174,8 +162,6 @@ colorbar
 axis xy
 title('std SC32 p value log first')
 add_t_f_axes(ax,t,f,trialInfo,num_ticks)
-
-
 %% find out the maximum predictive power for a given ROI
 feature_p_values_all_log = -log10(feature_p_values_all);
 
@@ -202,7 +188,7 @@ for example_electrode = trialInfo.proc_electrodes
         continue
     end
     
-    [M,index] = max(f_p_log,[],'all','linear');
+    [M,index] = max(f_p_log(:));
     [row,col] = ind2sub(size(f_p_log),index);
     
     feature_electrode_max(example_electrode) = M;
@@ -213,7 +199,6 @@ for example_electrode = trialInfo.proc_electrodes
     %[M_list,Index] = sort(f_p_log(:),'descend');
     
 end
-
 %%
 % examine the data
 figure
@@ -233,8 +218,6 @@ ylabel('freqency (Hz)')
 xlabel('Electrode')
 
 saveas(gca, 'feature_map_time_frequency.png')
-
-
 %% report results in a matlab figure
 %get electrode info
 
@@ -296,15 +279,12 @@ set(gca,'color',0*[1 1 1]);
 scatterToMatrix_plot_label(fig, map_SC32, mapInfo)
 
 saveas(gca, 'feature_spatial_time_frequency.png')
-
-
 %% add behaviour info to this data
 
 %plot_trials(Trials)
 %make a list of xlines to plot 
 
 behav_struct = cal_behav_times(Trials);
-
 %% example electrodes at different times
 example_electrodes = [1,11,218,211+13];
 
@@ -372,8 +352,93 @@ for ei = 1:length(example_electrodes)
 end
     
 saveas(gca, 'feature_example_time_frequency.png')
+%% looking at raw data
+
+example_electrodes = [218];
+%set up parameters
+params.Fs = 1000;
+tfproduct = 5;
+params.tapers = [tfproduct 2*tfproduct-1];
+params.trialave = 1;
+params.fpass = [0 200]; %controls the output frequency window
+movingwin = [0.2  0.05];
+num_ticks = 4;
 
 
+%make a new figure
+figure('units','normalized','outerposition',[0 0 0.5 1])
+
+
+for ei = 1:length(example_electrodes)
+    ei_d = example_electrodes(ei);
+
+    dat = squeeze(trLfpData(:,ei_d,:));
+    data = dat'; % times * trials
+    %calculate the  spectrum
+    [S,t,f] = mtspecgramc( data, movingwin, params );
+    t = t + trialInfo.tBefore/1000; %shift relative to movement start
+    S_Z = zscore(S,[],1);
+    
+    feature_p_values = squeeze(-log10(feature_p_values_all(ei_d,:,:)));
+    
+    t_window = [behav_struct.times(1) behav_struct.times(end)];
+    t_index  = find((t >= t_window(1)) & (t <= t_window(2)));
+    
+    fig = subplot(1,3,2*ei - 1)
+    imagesc(S_Z(t_index,:,:)')
+    if ei_d > 211
+        ei_d = ei_d - 211;
+        title(['Mean spectrum across all trials for SC32 ', num2str(ei_d)])
+    else
+        title(['Mean spectrum across all trials for ECoG ', num2str(ei_d)])
+    end
+    colorbar
+    axis xy
+    %add_t_f_axes(ax,t,f,trialInfo,num_ticks)
+    add_t_f_axes_behavInfo(fig,t(t_index),f,behav_struct.times,trialInfo,num_ticks)
+    
+    %plot out the feature p_values
+    %3 is when is target on
+    t_window = [behav_struct.times(3) behav_struct.times(end)];
+    t_index  = find((t >= t_window(1)) & (t <= t_window(2)));
+    
+    fig = subplot(1,3,2*ei);
+    imagesc( feature_p_values(t_index,:)')
+    if ei_d > 211
+        ei_d = ei_d - 211;
+        title(['Log p values  for SC32 ', num2str(ei_d)])
+    else
+        title(['Log p values  for ECoG ', num2str(ei_d)])
+    end
+    colorbar
+    axis xy
+    %add_t_f_axes(ax,t,f,trialInfo,num_ticks)
+    add_t_f_axes_behavInfo(fig,t(t_index),f,behav_struct.times(3:end),trialInfo,num_ticks)
+    
+    feature_p_values =   feature_p_values(t_index,:);
+    [max_value,ind] = max(feature_p_values(:));
+    [r,c] = ind2sub(size(feature_p_values),ind);
+    
+    fig = subplot(1,3,3);
+    dat = squeeze(trLfpData(:,ei_d,:));
+    data = dat'; % times * trials
+    
+    %calculate the  spectrum
+    params.trialave = 0;
+    [S,t,f] = mtspecgramc( data, movingwin, params );
+    t = t + trialInfo.tBefore/1000; %shift relative to movement start
+    S_Z = zscore(S,[],1);
+    S_Z = S_Z(t_index,:,: );
+    
+    
+    [p,~,stats] = anova1(squeeze(S_Z(r,c,:)),trial_TargetAssigned, 'on');
+    
+    xlabel('Target direction')
+    ylabel('Transformed P value')
+        
+end
+    
+%saveas(gca, 'feature_example_time_frequency.png')
 
 
 
